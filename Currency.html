@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Currency Converter</title>
+  <style>
+    body {
+      font-family: sans-serif;
+    }
+    #container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 50px;
+    }
+    #currency-select {
+      margin-bottom: 20px;
+    }
+    input[type="number"] {
+      width: 100px;
+      padding: 10px;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h1>Currency Converter</h1>
+    <div id="currency-select">
+      <label for="from-currency">From:</label>
+      <select id="from-currency"></select>
+      <label for="to-currency">To:</label>
+      <select id="to-currency"></select>
+    </div>
+    <input type="number" id="amount" placeholder="Enter amount">
+    <button id="convert-button">Convert</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const fromCurrencySelect = document.getElementById('from-currency');
+    const toCurrencySelect = document.getElementById('to-currency');
+    const amountInput = document.getElementById('amount');
+    const convertButton = document.getElementById('convert-button');
+    const resultDiv = document.getElementById('result');
+
+    // Fetch currency data from API
+    fetch('https://api.exchangerate-api.com/v4/latest/USD')
+      .then(response => response.json())
+      .then(data => {
+        // Populate currency select options
+        const currencies = Object.keys(data.rates);
+        currencies.forEach(currency => {
+          const option = document.createElement('option');
+          option.value = currency;
+          option.text = currency;
+          fromCurrencySelect.appendChild(option);
+          toCurrencySelect.appendChild(option.cloneNode(true));
+        });
+
+        // Default values for select elements
+        fromCurrencySelect.value = 'USD';
+        toCurrencySelect.value = 'EUR';
+
+        // Event listener for convert button
+        convertButton.addEventListener('click', () => {
+          const fromCurrency = fromCurrencySelect.value;
+          const toCurrency = toCurrencySelect.value;
+          const amount = parseFloat(amountInput.value);
+
+          // Check if amount is valid
+          if (isNaN(amount)) {
+            resultDiv.textContent = 'Please enter a valid amount.';
+            return;
+          }
+
+          // Convert currency
+          fetch(`https://api.exchangerate-api.com/v4/latest/${fromCurrency}`)
+            .then(response => response.json())
+            .then(data => {
+              const exchangeRate = data.rates[toCurrency];
+              const convertedAmount = amount * exchangeRate;
+              resultDiv.textContent = `${amount} ${fromCurrency} = ${convertedAmount.toFixed(2)} ${toCurrency}`;
+            })
+            .catch(error => {
+              console.error(error);
+              resultDiv.textContent = 'An error occurred. Please try again later.';
+            });
+        });
+      })
+      .catch(error => {
+        console.error(error);
+        resultDiv.textContent = 'An error occurred while fetching currency data. Please try again later.';
+      });
+  </script>
+</body>
+</html>
