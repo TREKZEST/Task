@@ -1,69 +1,199 @@
-// getting all required elements
-const inputBox = document.querySelector(".inputField input");
-const addBtn = document.querySelector(".inputField button");
-const todoList = document.querySelector(".todoList");
-const deleteAllBtn = document.querySelector(".footer button");
+const addBtns = document.querySelectorAll('.add-btn:not(.solid)');
+const saveItemBtns = document.querySelectorAll('.solid');
+const addItemContainers = document.querySelectorAll('.add-container');
+const addItems = document.querySelectorAll('.add-item');
+// Item Lists
+const listColumns = document.querySelectorAll('.drag-item-list');
+const backlogListEl = document.getElementById('backlog-list');
+const progressListEl = document.getElementById('progress-list');
+const completeListEl = document.getElementById('complete-list');
+const onHoldListEl = document.getElementById('on-hold-list');
 
-// onkeyup event
-inputBox.onkeyup = ()=>{
-  let userEnteredValue = inputBox.value; //getting user entered value
-  if(userEnteredValue.trim() != 0){ //if the user value isn't only spaces
-    addBtn.classList.add("active"); //active the add button
-  }else{
-    addBtn.classList.remove("active"); //unactive the add button
+// Items
+let updatedOnLoad = false;
+
+// Initialize Arrays
+let backlogListArray = [];
+let progressListArray = [];
+let completeListArray = [];
+let onHoldListArray = [];
+let listArrays = [];
+
+// Drag Functionality
+let draggedItem;
+let dragging = false;
+let currentColumn;
+
+// Get Arrays from localStorage if available, set default values if not
+function getSavedColumns() {
+  if (localStorage.getItem('backlogItems')) {
+    backlogListArray = JSON.parse(localStorage.backlogItems);
+    progressListArray = JSON.parse(localStorage.progressItems);
+    completeListArray = JSON.parse(localStorage.completeItems);
+    onHoldListArray = JSON.parse(localStorage.onHoldItems);
+  } else {
+    backlogListArray = ['Release the course', 'Sit back and relax'];
+    progressListArray = ['Work on projects', 'Listen to music'];
+    completeListArray = ['Being cool', 'Getting stuff done'];
+    onHoldListArray = ['Being uncool'];
   }
 }
 
-showTasks(); //calling showTask function
-
-addBtn.onclick = ()=>{ //when user click on plus icon button
-  let userEnteredValue = inputBox.value; //getting input field value
-  let getLocalStorageData = localStorage.getItem("New Todo"); //getting localstorage
-  if(getLocalStorageData == null){ //if localstorage has no data
-    listArray = []; //create a blank array
-  }else{
-    listArray = JSON.parse(getLocalStorageData);  //transforming json string into a js object
-  }
-  listArray.push(userEnteredValue); //pushing or adding new value in array
-  localStorage.setItem("New Todo", JSON.stringify(listArray)); //transforming js object into a json string
-  showTasks(); //calling showTask function
-  addBtn.classList.remove("active"); //unactive the add button once the task added
-}
-
-function showTasks(){
-  let getLocalStorageData = localStorage.getItem("New Todo");
-  if(getLocalStorageData == null){
-    listArray = [];
-  }else{
-    listArray = JSON.parse(getLocalStorageData); 
-  }
-  const pendingTasksNumb = document.querySelector(".pendingTasks");
-  pendingTasksNumb.textContent = listArray.length; //passing the array length in pendingtask
-  if(listArray.length > 0){ //if array length is greater than 0
-    deleteAllBtn.classList.add("active"); //active the delete button
-  }else{
-    deleteAllBtn.classList.remove("active"); //unactive the delete button
-  }
-  let newLiTag = "";
-  listArray.forEach((element, index) => {
-    newLiTag += `<li>${element}<span class="icon" onclick="deleteTask(${index})"><i class="fas fa-trash"></i></span></li>`;
+// Set localStorage Arrays
+function updateSavedColumns() {
+  listArrays = [backlogListArray, progressListArray, completeListArray, onHoldListArray];
+  const arrayNames = ['backlog', 'progress', 'complete', 'onHold'];
+  arrayNames.forEach((arrayName, index) => {
+    localStorage.setItem(`${arrayName}Items`, JSON.stringify(listArrays[index]));
   });
-  todoList.innerHTML = newLiTag; //adding new li tag inside ul tag
-  inputBox.value = ""; //once task added leave the input field blank
 }
 
-// delete task function
-function deleteTask(index){
-  let getLocalStorageData = localStorage.getItem("New Todo");
-  listArray = JSON.parse(getLocalStorageData);
-  listArray.splice(index, 1); //delete or remove the li
-  localStorage.setItem("New Todo", JSON.stringify(listArray));
-  showTasks(); //call the showTasks function
+// Filter Array to remove empty values
+function filterArray(array) {
+  const filteredArray = array.filter(item => item !== null);
+  return filteredArray;
 }
 
-// delete all tasks function
-deleteAllBtn.onclick = ()=>{
-  listArray = []; //empty the array
-  localStorage.setItem("New Todo", JSON.stringify(listArray)); //set the item in localstorage
-  showTasks(); //call the showTasks function
+// Create DOM Elements for each list item
+function createItemEl(columnEl, column, item, index) {
+  // List Item
+  const listEl = document.createElement('li');
+  listEl.textContent = item;
+  listEl.id = index;
+  listEl.classList.add('drag-item');
+  listEl.draggable = true;
+  listEl.setAttribute('onfocusout', `updateItem(${index}, ${column})`);
+  listEl.setAttribute('ondragstart', 'drag(event)');
+  listEl.contentEditable = true;
+  // Append
+  columnEl.appendChild(listEl);
 }
+
+// Update Columns in DOM - Reset HTML, Filter Array, Update localStorage
+function updateDOM() {
+  // Check localStorage once
+  if (!updatedOnLoad) {
+    getSavedColumns();
+  }
+  // Backlog Column
+  backlogListEl.textContent = '';
+  backlogListArray.forEach((backlogItem, index) => {
+    createItemEl(backlogListEl, 0, backlogItem, index);
+  });
+  backlogListArray = filterArray(backlogListArray);
+  // Progress Column
+  progressListEl.textContent = '';
+  progressListArray.forEach((progressItem, index) => {
+    createItemEl(progressListEl, 1, progressItem, index);
+  });
+  progressListArray = filterArray(progressListArray);
+  // Complete Column
+  completeListEl.textContent = '';
+  completeListArray.forEach((completeItem, index) => {
+    createItemEl(completeListEl, 2, completeItem, index);
+  });
+  completeListArray = filterArray(completeListArray);
+  // On Hold Column
+  onHoldListEl.textContent = '';
+  onHoldListArray.forEach((onHoldItem, index) => {
+    createItemEl(onHoldListEl, 3, onHoldItem, index);
+  });
+  onHoldListArray = filterArray(onHoldListArray);
+  // Don't run more than once, Update Local Storage
+  updatedOnLoad = true;
+  updateSavedColumns();
+}
+
+// Update Item - Delete if necessary, or update Array value
+function updateItem(id, column) {
+  const selectedArray = listArrays[column];
+  const selectedColumn = listColumns[column].children;
+  if (!dragging) {
+    if (!selectedColumn[id].textContent) {
+      delete selectedArray[id];
+    } else {
+      selectedArray[id] = selectedColumn[id].textContent;
+    }
+    updateDOM();
+  }
+}
+
+// Add to Column List, Reset Textbox
+function addToColumn(column) {
+  const itemText = addItems[column].textContent;
+  const selectedArray = listArrays[column];
+  selectedArray.push(itemText);
+  addItems[column].textContent = '';
+  updateDOM(column);
+}
+
+// Show Add Item Input Box
+function showInputBox(column) {
+  addBtns[column].style.visibility = 'hidden';
+  saveItemBtns[column].style.display = 'flex';
+  addItemContainers[column].style.display = 'flex';
+}
+
+// Hide Item Input Box
+function hideInputBox(column) {
+  addBtns[column].style.visibility = 'visible';
+  saveItemBtns[column].style.display = 'none';
+  addItemContainers[column].style.display = 'none';
+  addToColumn(column);
+}
+
+// Allows arrays to reflect Drag and Drop items
+function rebuildArrays() {
+  backlogListArray = [];
+  for (let i = 0; i < backlogListEl.children.length; i++) {
+    backlogListArray.push(backlogListEl.children[i].textContent);
+  }
+  progressListArray = [];
+  for (let i = 0; i < progressListEl.children.length; i++) {
+    progressListArray.push(progressListEl.children[i].textContent);
+  }
+  completeListArray = [];
+  for (let i = 0; i < completeListEl.children.length; i++) {
+    completeListArray.push(completeListEl.children[i].textContent);
+  }
+  onHoldListArray = [];
+  for (let i = 0; i < onHoldListEl.children.length; i++) {
+    onHoldListArray.push(onHoldListEl.children[i].textContent);
+  }
+  updateDOM();
+}
+
+// When Item Enters Column Area
+function dragEnter(column) {
+  listColumns[column].classList.add('over');
+  currentColumn = column;
+}
+
+// When Item Starts Dragging
+function drag(e) {
+  draggedItem = e.target;
+  dragging = true;
+}
+
+// Column Allows for Item to Drop
+function allowDrop(e) {
+  e.preventDefault();
+}
+
+// Dropping Item in Column
+function drop(e) {
+  e.preventDefault();
+  const parent = listColumns[currentColumn];
+  // Remove Background Color/Padding
+  listColumns.forEach((column) => {
+    column.classList.remove('over');
+  });
+  // Add item to Column
+  parent.appendChild(draggedItem);
+  // Dragging complete
+  dragging = false;
+  rebuildArrays();
+}
+
+// On Load
+updateDOM();
